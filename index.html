@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Note Detector · EE410</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#06080f;
+  --surface:#0d1120;
+  --card:#111827;
+  --border:rgba(255,255,255,0.06);
+  --border-hover:rgba(255,255,255,0.14);
+  --accent:#00d4aa;
+  --accent-dim:rgba(0,212,170,0.12);
+  --accent-glow:rgba(0,212,170,0.2);
+  --gold:#f0c060;
+  --text:#eef0f6;
+  --muted:#6b7a99;
+  --muted2:#3d4a66;
+  --success:#00d4aa;
+  --warn:#f0a030;
+  --danger:#e05555;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-mono:'IBM Plex Mono',monospace;
+  --font-body:'Manrope',system-ui,sans-serif;
+}
+
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Decorative background ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%,rgba(0,212,170,0.07) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 60% at 90% 80%,rgba(0,100,200,0.05) 0%,transparent 50%);
+}
+
+/* ── Grid lines ── */
+body::after{
+  content:'';
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+/* ── Piano strip ── */
+.piano{
+  position:fixed;bottom:0;left:0;right:0;height:90px;
+  display:flex;align-items:flex-end;justify-content:center;
+  gap:2px;padding:0 2vw;z-index:0;pointer-events:none;
+  opacity:0.05;
+}
+.kw{width:22px;height:80px;background:#d8dde8;border-radius:0 0 3px 3px}
+.kb{width:14px;height:52px;background:#1a1f2e;border-radius:0 0 2px 2px;margin:0 -7px;position:relative;z-index:1}
+
+/* ── Layout ── */
+.page{
+  position:relative;z-index:1;
+  max-width:700px;margin:0 auto;
+  padding:72px 24px 140px;
+}
+
+/* ── Header ── */
+header{text-align:center;margin-bottom:60px}
+.chip{
+  display:inline-block;margin-bottom:20px;
+  padding:5px 14px;border-radius:999px;
+  border:1px solid rgba(0,212,170,0.3);
+  background:rgba(0,212,170,0.07);
+  font-family:var(--font-mono);font-size:11px;
+  color:var(--accent);letter-spacing:.1em;text-transform:uppercase;
+}
+h1{
+  font-family:var(--font-display);
+  font-size:clamp(2.4rem,6vw,3.6rem);
+  font-weight:700;line-height:1.05;
+  letter-spacing:-.01em;
+  color:var(--text);
+  margin-bottom:14px;
+}
+h1 em{font-style:italic;color:var(--accent)}
+.sub{
+  font-size:15px;color:var(--muted);line-height:1.65;
+  max-width:420px;margin:0 auto;
+}
+
+/* ── Upload card ── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:36px;
+  margin-bottom:20px;
+}
+
+.drop-zone{
+  border:1.5px dashed var(--border-hover);
+  border-radius:14px;
+  padding:56px 28px;
+  text-align:center;
+  cursor:pointer;
+  transition:all .25s;
+  position:relative;
+  overflow:hidden;
+}
+.drop-zone:hover,.drop-zone.over{
+  border-color:var(--accent);
+  background:var(--accent-dim);
+}
+.drop-zone:hover .drop-icon,.drop-zone.over .drop-icon{transform:scale(1.12) translateY(-3px)}
+
+.drop-icon{
+  font-size:48px;display:block;margin-bottom:18px;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  filter:saturate(.5);
+}
+.drop-zone h2{
+  font-family:var(--font-display);
+  font-size:1.35rem;font-weight:400;margin-bottom:8px;color:var(--text);
+}
+.drop-zone p{font-size:14px;color:var(--muted);margin-bottom:22px}
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:11px 26px;border-radius:10px;border:none;
+  font-family:var(--font-body);font-size:14px;font-weight:600;
+  cursor:pointer;transition:all .18s;outline:none;
+}
+.btn-primary{
+  background:var(--accent);color:#001a14;
+  box-shadow:0 0 0 0 var(--accent-glow);
+}
+.btn-primary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 30px var(--accent-glow);
+}
+.btn-primary:active{transform:translateY(0)}
+.btn-ghost{
+  background:transparent;
+  border:1px solid var(--border-hover);
+  color:var(--text);
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+#file-input{display:none}
+
+.file-pill{
+  display:none;align-items:center;gap:10px;
+  margin-top:14px;padding:10px 16px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);
+  font-family:var(--font-mono);font-size:12px;color:var(--muted);
+}
+.file-pill.show{display:flex}
+.file-pill span:last-child{margin-left:auto;font-size:11px}
+
+/* ── Waveform loader ── */
+.loader{display:none;text-align:center;padding:28px 0}
+.loader.show{display:block}
+.waves{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  height:44px;margin-bottom:12px;
+}
+.wv{
+  width:5px;border-radius:5px;
+  background:linear-gradient(180deg,var(--accent),rgba(0,212,170,.3));
+  animation:wwave 1.1s ease-in-out infinite;
+}
+.wv:nth-child(1){height:14px;animation-delay:0s}
+.wv:nth-child(2){height:26px;animation-delay:.09s}
+.wv:nth-child(3){height:20px;animation-delay:.18s}
+.wv:nth-child(4){height:36px;animation-delay:.27s}
+.wv:nth-child(5){height:18px;animation-delay:.36s}
+.wv:nth-child(6){height:30px;animation-delay:.45s}
+.wv:nth-child(7){height:24px;animation-delay:.54s}
+.wv:nth-child(8){height:28px;animation-delay:.63s}
+.wv:nth-child(9){height:16px;animation-delay:.72s}
+.wv:nth-child(10){height:32px;animation-delay:.81s}
+.wv:nth-child(11){height:22px;animation-delay:.90s}
+.wv:nth-child(12){height:12px;animation-delay:.99s}
+@keyframes wwave{
+  0%,100%{transform:scaleY(.25);opacity:.3}
+  50%{transform:scaleY(1);opacity:1}
+}
+.loader-text{
+  font-family:var(--font-mono);font-size:13px;color:var(--muted);
+  animation:blink 1.4s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* ── Error ── */
+.err{
+  display:none;margin-top:14px;padding:14px 18px;border-radius:12px;
+  background:rgba(224,85,85,.08);border:1px solid rgba(224,85,85,.25);
+  color:var(--danger);font-size:13px;font-family:var(--font-mono);line-height:1.6;
+}
+.err.show{display:block}
+
+/* ── Result ── */
+.result{display:none;animation:fadeUp .5s ease forwards}
+.result.show{display:block}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Big note hero */
+.note-hero{
+  background:var(--card);border:1px solid rgba(0,212,170,.18);
+  border-radius:20px;padding:48px 36px;text-align:center;
+  margin-bottom:16px;
+  position:relative;overflow:hidden;
+}
+.note-hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 70% at 50% 0%,rgba(0,212,170,.07),transparent 60%);
+  pointer-events:none;
+}
+.note-eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:16px;
+}
+.note-big{
+  font-family:var(--font-display);
+  font-size:clamp(5rem,15vw,9rem);
+  font-weight:700;line-height:1;
+  color:var(--accent);
+  animation:notePop .55s cubic-bezier(.34,1.56,.64,1) forwards;
+  position:relative;z-index:1;
+}
+@keyframes notePop{
+  from{transform:scale(.5);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+.note-hz{
+  font-family:var(--font-mono);font-size:15px;color:var(--muted);
+  margin-top:10px;position:relative;z-index:1;
+}
+.note-desc{
+  font-size:14px;color:var(--muted);margin-top:8px;
+  font-style:italic;position:relative;z-index:1;
+}
+
+/* Stats row */
+.stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+  margin-bottom:16px;
+}
+.stat{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:18px 16px;text-align:center;
+}
+.stat-label{
+  font-family:var(--font-mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;
+}
+.stat-val{
+  font-family:var(--font-mono);font-size:22px;font-weight:500;
+  color:var(--text);
+}
+
+/* Confidence bar */
+.conf-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:20px 22px;margin-bottom:16px;
+}
+.conf-label{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  margin-bottom:12px;
+}
+.conf-label span:last-child{color:var(--text);font-weight:500}
+.conf-track{
+  height:6px;background:var(--muted2);border-radius:6px;overflow:hidden;
+}
+.conf-fill{
+  height:100%;border-radius:6px;background:var(--accent);
+  transition:width .6s cubic-bezier(.4,0,.2,1);
+}
+
+/* Candidates */
+.cand-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:20px 22px;margin-bottom:16px;
+}
+.cand-title{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+.cand-row{
+  display:flex;align-items:center;gap:12px;margin-bottom:10px;
+}
+.cand-note{
+  font-family:var(--font-mono);font-size:13px;
+  font-weight:500;min-width:34px;color:var(--text);
+}
+.cand-bar-wrap{
+  flex:1;background:var(--muted2);border-radius:4px;height:5px;overflow:hidden;
+}
+.cand-bar{height:100%;border-radius:4px;background:var(--muted);transition:width .5s}
+.cand-bar.top{background:var(--accent)}
+.cand-pct{
+  font-family:var(--font-mono);font-size:11px;
+  color:var(--muted);min-width:32px;text-align:right;
+}
+
+/* Cents meter */
+.cents-meter{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:20px 22px;margin-bottom:20px;
+}
+.cents-title{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:16px;
+}
+.meter-track{
+  position:relative;height:8px;background:var(--muted2);border-radius:8px;
+}
+.meter-center{
+  position:absolute;left:50%;top:-3px;transform:translateX(-50%);
+  width:2px;height:14px;background:var(--border-hover);border-radius:2px;
+}
+.meter-needle{
+  position:absolute;top:-5px;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--accent);
+  transform:translateX(-50%);
+  border:2px solid var(--bg);
+  transition:left .5s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 10px var(--accent-glow);
+}
+.meter-labels{
+  display:flex;justify-content:space-between;
+  margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--muted);
+}
+
+/* Actions */
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+
+/* ── How it works ── */
+.how{
+  margin-top:40px;padding-top:40px;
+  border-top:1px solid var(--border);
+}
+.how h3{
+  font-family:var(--font-display);font-size:1.3rem;font-weight:400;
+  color:var(--text);margin-bottom:20px;
+}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.step{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:18px 16px;
+}
+.step-n{
+  font-family:var(--font-mono);font-size:11px;color:var(--accent);
+  letter-spacing:.1em;margin-bottom:8px;
+}
+.step-t{font-size:14px;font-weight:500;margin-bottom:5px}
+.step-d{font-size:12px;color:var(--muted);line-height:1.55}
+
+/* ── Footer ── */
+footer{
+  text-align:center;margin-top:60px;
+  font-family:var(--font-mono);font-size:12px;color:var(--muted2);
+  letter-spacing:.05em;
+}
+
+/* ── Responsive ── */
+@media(max-width:500px){
+  .page{padding:48px 16px 100px}
+  .card,.note-hero,.stats,.stat,.conf-card,.cand-card,.cents-meter{border-radius:14px}
+  .stats{grid-template-columns:1fr 1fr}
+  .stats .stat:nth-child(3){grid-column:1/-1}
+}
+</style>
+</head>
+<body>
+
+<!-- Piano decoration -->
+<div class="piano" id="pianoStrip"></div>
+
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="chip">EE410 · Deep Learning · Signal Processing</div>
+    <h1>Detect a <em>Musical Note</em><br>from any Audio File</h1>
+    <p class="sub">Upload a <strong>.wav</strong> recording — the pitch is analysed entirely in your browser using autocorrelation. Nothing is uploaded to any server.</p>
+  </header>
+
+  <!-- Upload card -->
+  <div class="card" id="upload-card">
+    <div class="drop-zone" id="drop-zone">
+      <span class="drop-icon">🎵</span>
+      <h2>Drop your .wav file here</h2>
+      <p>Mono or stereo · any sample rate · works offline</p>
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+        Browse files
+      </button>
+      <input type="file" id="file-input" accept=".wav,audio/wav"/>
+    </div>
+    <div class="file-pill" id="file-pill">
+      <span>📄</span>
+      <span id="pill-name"></span>
+      <span id="pill-size"></span>
+    </div>
+    <div class="loader" id="loader">
+      <div class="waves">
+        <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+        <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+        <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+        <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+      </div>
+      <div class="loader-text" id="loader-text">Decoding audio…</div>
+    </div>
+    <div class="err" id="err-box"></div>
+  </div>
+
+  <!-- Result (hidden until detection) -->
+  <div class="result" id="result-panel">
+
+    <div class="note-hero">
+      <div class="note-eyebrow">Detected Fundamental Note</div>
+      <div class="note-big" id="res-note">—</div>
+      <div class="note-hz" id="res-hz"></div>
+      <div class="note-desc" id="res-desc"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">MIDI #</div>
+        <div class="stat-val" id="res-midi">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Frequency</div>
+        <div class="stat-val" id="res-freq">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Cents off</div>
+        <div class="stat-val" id="res-cents">—</div>
+      </div>
+    </div>
+
+    <div class="cents-meter">
+      <div class="cents-title">Tuning meter</div>
+      <div class="meter-track">
+        <div class="meter-center"></div>
+        <div class="meter-needle" id="meter-needle"></div>
+      </div>
+      <div class="meter-labels">
+        <span>−50 ¢</span><span>flat</span><span>in tune</span><span>sharp</span><span>+50 ¢</span>
+      </div>
+    </div>
+
+    <div class="conf-card">
+      <div class="conf-label">
+        <span>Detection confidence</span>
+        <span id="conf-pct">—</span>
+      </div>
+      <div class="conf-track">
+        <div class="conf-fill" id="conf-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="cand-card">
+      <div class="cand-title">Top candidates</div>
+      <div id="candidates"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="resetAll()">↺ Analyse another file</button>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="how">
+    <h3>How it works</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01</div>
+        <div class="step-t">Decode</div>
+        <div class="step-d">Your browser's Web Audio API converts the WAV into raw PCM samples.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <div class="step-t">Autocorrelate</div>
+        <div class="step-d">Multiple overlapping windows are autocorrelated to find the repeating period of the waveform.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <div class="step-t">Vote</div>
+        <div class="step-d">Each window casts a vote for the nearest note. The majority wins.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">04</div>
+        <div class="step-t">Display</div>
+        <div class="step-d">The winning note, its frequency, MIDI number and tuning accuracy are shown instantly.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Note Detector · EE410 · Runs entirely in your browser · No data leaves your device</footer>
+</div>
+
+<script>
+/* ── Piano strip ──────────────────────────────────────────────── */
+(function(){
+  const strip = document.getElementById('pianoStrip');
+  const pat   = [0,1,0,1,0,0,1,0,1,0,1,0]; // 0=white,1=black
+  for(let o=0;o<6;o++){
+    pat.forEach(b=>{
+      const k=document.createElement('div');
+      k.className=b?'kb':'kw';
+      strip.appendChild(k);
+    });
+  }
+})();
+
+/* ── Constants ────────────────────────────────────────────────── */
+const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const DESC={
+  'C' :'Tonic — the home pitch, stable and grounding.',
+  'C#':'Db — a tense, chromatic colour.',
+  'D' :'Supertonic — bright, forward-moving.',
+  'D#':'Eb — a minor, introspective tone.',
+  'E' :'Mediant — lively and expressive.',
+  'F' :'Subdominant — warm, slightly subdued.',
+  'F#':'Tritone — the most dissonant interval from C.',
+  'G' :'Dominant — resonant and strong.',
+  'G#':'Ab — a rich minor-sixth colour.',
+  'A' :'A4 = 440 Hz — the international tuning reference.',
+  'A#':'Bb — a jazzy, bluesy tone.',
+  'B' :'Leading tone — creates strong pull toward the tonic.',
+};
+
+/* ── Pitch helpers ────────────────────────────────────────────── */
+function freqToInfo(f){
+  const exact  = 12*Math.log2(f/440)+69;
+  const midi   = Math.round(exact);
+  const cents  = Math.round((exact-midi)*100);
+  const idx    = ((midi%12)+12)%12;
+  const oct    = Math.floor(midi/12)-1;
+  const ideal  = 440*Math.pow(2,(midi-69)/12);
+  return {note:NAMES[idx]+oct, name:NAMES[idx], oct, midi, freq:f, ideal, cents};
+}
+
+/* ── Autocorrelation (YIN-inspired) ──────────────────────────── */
+function detectPitch(buf, sr){
+  const N = buf.length;
+  // RMS gate
+  let rms=0; for(let i=0;i<N;i++) rms+=buf[i]*buf[i]; rms=Math.sqrt(rms/N);
+  if(rms<0.006) return -1;
+
+  // Trim silence at edges
+  let r1=0,r2=N-1;
+  for(let i=0;i<N/2;i++){if(Math.abs(buf[i])<0.15){r1=i;break;}}
+  for(let i=1;i<N/2;i++){if(Math.abs(buf[N-i])<0.15){r2=N-i;break;}}
+  const b=buf.slice(r1,r2+1);
+  const M=b.length;
+  if(M<512) return -1;
+
+  // Build autocorrelation
+  const c=new Float64Array(M);
+  for(let lag=0;lag<M;lag++){
+    let s=0; for(let j=0;j<M-lag;j++) s+=b[j]*b[j+lag];
+    c[lag]=s;
+  }
+
+  // Find first dip, then highest peak after it
+  let d=0;
+  while(d<M-1 && c[d]>=c[d+1]) d++;
+  let best=-Infinity, bLag=-1;
+  for(let i=d;i<M;i++) if(c[i]>best){best=c[i];bLag=i;}
+  if(bLag<2) return -1;
+
+  // Parabolic interpolation for sub-sample accuracy
+  const x1=c[bLag-1],x2=c[bLag],x3=bLag+1<M?c[bLag+1]:x2;
+  const a=(x1+x3-2*x2)/2, bv=(x3-x1)/2;
+  const T=a?bLag-bv/(2*a):bLag;
+  if(T<2) return -1;
+  return sr/T;
+}
+
+/* ── Multi-window analysis ────────────────────────────────────── */
+function analyse(audioBuffer){
+  const ch  = audioBuffer.getChannelData(0);
+  const sr  = audioBuffer.sampleRate;
+  const WIN = 8192;
+  const votes={};
+  const freqs={};
+  const step=Math.max(512, Math.floor((ch.length-WIN)/32));
+  let total=0;
+
+  for(let start=0; start+WIN<ch.length; start+=step){
+    const f=detectPitch(ch.slice(start,start+WIN),sr);
+    if(f>60 && f<1800){
+      const info=freqToInfo(f);
+      votes[info.note]=(votes[info.note]||0)+1;
+      if(!freqs[info.note]) freqs[info.note]=[];
+      freqs[info.note].push(f);
+      total++;
+    }
+  }
+
+  if(!total || !Object.keys(votes).length) return null;
+
+  const sorted=Object.entries(votes).sort((a,b)=>b[1]-a[1]);
+  const topNote=sorted[0][0];
+  const avgFreq=freqs[topNote].reduce((s,v)=>s+v,0)/freqs[topNote].length;
+  const confidence=sorted[0][1]/total;
+  const info=freqToInfo(avgFreq);
+
+  return {...info, confidence, votes, total, sorted};
+}
+
+/* ── File handling ────────────────────────────────────────────── */
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('over');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change',()=>{if(fileInput.files[0]) handleFile(fileInput.files[0]);});
+
+function fmtSize(b){
+  if(b<1024) return b+' B';
+  if(b<1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
+}
+
+async function handleFile(file){
+  if(!file.name.toLowerCase().endsWith('.wav')){
+    showErr('Only .wav files are supported. Please convert your audio to WAV format first.');
+    return;
+  }
+  // Show pill
+  const pill=document.getElementById('file-pill');
+  document.getElementById('pill-name').textContent=file.name;
+  document.getElementById('pill-size').textContent=fmtSize(file.size);
+  pill.classList.add('show');
+
+  showLoader('Decoding audio…');
+  hideErr();
+  hideResult();
+
+  try{
+    const ab=await file.arrayBuffer();
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    setLoaderText('Analysing pitch…');
+    const decoded=await ctx.decodeAudioData(ab);
+    ctx.close();
+    setLoaderText('Counting votes…');
+    await tick();
+    const result=analyse(decoded);
+    hideLoader();
+    if(!result) throw new Error('No clear pitch found. Make sure the recording contains a single sustained musical note with minimal background noise.');
+    showResult(result);
+  } catch(err){
+    hideLoader();
+    showErr(err.message||'An unexpected error occurred.');
+    document.getElementById('file-pill').classList.remove('show');
+  }
+}
+
+/* ── Display result ───────────────────────────────────────────── */
+function showResult(r){
+  document.getElementById('res-note').textContent=r.note;
+  document.getElementById('res-hz').textContent=r.freq.toFixed(2)+' Hz  ·  ideal: '+r.ideal.toFixed(2)+' Hz';
+  document.getElementById('res-desc').textContent=DESC[r.name]||'';
+  document.getElementById('res-midi').textContent=r.midi;
+  document.getElementById('res-freq').textContent=r.freq.toFixed(1)+' Hz';
+
+  const sign=r.cents>0?'+':'';
+  const cEl=document.getElementById('res-cents');
+  cEl.textContent=sign+r.cents+' ¢';
+  cEl.style.color=Math.abs(r.cents)<10?'#00d4aa':Math.abs(r.cents)<25?'#f0a030':'#e05555';
+
+  // Tuning meter needle (0–100% range, 50% = centre)
+  const needlePct=50+(r.cents/100)*50;
+  document.getElementById('meter-needle').style.left=Math.max(0,Math.min(100,needlePct))+'%';
+
+  // Confidence
+  const pct=Math.round(r.confidence*100);
+  document.getElementById('conf-pct').textContent=pct+'%';
+  document.getElementById('conf-fill').style.width=pct+'%';
+
+  // Candidates
+  const top5=r.sorted.slice(0,5);
+  document.getElementById('candidates').innerHTML=top5.map(([note,v],i)=>{
+    const p=Math.round(v/r.total*100);
+    const isTop=i===0;
+    return `<div class="cand-row">
+      <span class="cand-note" style="${isTop?'color:var(--accent)':''}">${note}</span>
+      <div class="cand-bar-wrap"><div class="cand-bar${isTop?' top':''}" style="width:${p}%"></div></div>
+      <span class="cand-pct">${p}%</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('result-panel').classList.add('show');
+  document.getElementById('result-panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ── Loader helpers ───────────────────────────────────────────── */
+function showLoader(msg){
+  const el=document.getElementById('loader');
+  el.classList.add('show');
+  setLoaderText(msg);
+}
+function setLoaderText(t){document.getElementById('loader-text').textContent=t}
+function hideLoader(){document.getElementById('loader').classList.remove('show')}
+function showErr(msg){const e=document.getElementById('err-box');e.textContent='⚠ '+msg;e.classList.add('show')}
+function hideErr(){document.getElementById('err-box').classList.remove('show')}
+function hideResult(){document.getElementById('result-panel').classList.remove('show')}
+function tick(){return new Promise(r=>setTimeout(r,40))}
+
+function resetAll(){
+  hideResult();hideErr();hideLoader();
+  document.getElementById('file-pill').classList.remove('show');
+  document.getElementById('file-input').value='';
+}
+</script>
+</body>
+</html>
